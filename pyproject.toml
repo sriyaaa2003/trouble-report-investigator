@@ -49,6 +49,8 @@ known-first-party = ["investigator", "tests"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S", "E501"]
+# One-off download CLI: a few local file reads next to minutes of network I/O; not a request path.
+"src/investigator/data/fetch.py" = ["ASYNC240"]
 
 [tool.mypy]
 python_version = "3.11"

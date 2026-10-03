@@ -23,8 +23,15 @@ log = logging.getLogger(__name__)
 
 BASE = "https://bugzilla.mozilla.org/rest"
 USER_AGENT = "trouble-report-investigator-research/0.1 (portfolio project; polite client)"
-META_FIELDS = "id,summary,component,product,resolution,dupe_of,creation_time,severity,keywords,status,cf_crash_signature"
-_FIX_MARKERS = ("Pushed by", "hg.mozilla.org/integration", "hg.mozilla.org/mozilla-central", "mozilla-firefox/firefox/commit")
+META_FIELDS = (
+    "id,summary,component,product,resolution,dupe_of,creation_time,severity,keywords,status,cf_crash_signature"
+)
+_FIX_MARKERS = (
+    "Pushed by",
+    "hg.mozilla.org/integration",
+    "hg.mozilla.org/mozilla-central",
+    "mozilla-firefox/firefox/commit",
+)
 
 
 def month_windows(start_year: int, end_year: int) -> list[tuple[str, str]]:
@@ -38,7 +45,9 @@ def month_windows(start_year: int, end_year: int) -> list[tuple[str, str]]:
 
 
 class Client:
-    def __init__(self, concurrency: int = 6, transport: httpx.AsyncBaseTransport | None = None, backoff_s: float = 1.5) -> None:
+    def __init__(
+        self, concurrency: int = 6, transport: httpx.AsyncBaseTransport | None = None, backoff_s: float = 1.5
+    ) -> None:
         self._http = httpx.AsyncClient(timeout=60, headers={"User-Agent": USER_AGENT}, transport=transport)
         self._backoff_s = backoff_s
         self._sem = asyncio.Semaphore(concurrency)
@@ -65,7 +74,8 @@ class Client:
                 wait = float(r.headers.get("retry-after", 0)) or 0.0
             else:
                 wait = 0.0
-            await asyncio.sleep(max(wait, self._backoff_s * (2**attempt)) + (random.random() if self._backoff_s else 0.0))  # noqa: S311
+            jitter = random.random() if self._backoff_s else 0.0  # noqa: S311  (retry jitter, not security)
+            await asyncio.sleep(max(wait, self._backoff_s * (2**attempt)) + jitter)
         log.warning("giving up on %s", path)
         return None
 
@@ -80,10 +90,17 @@ async def fetch_meta(client: Client, start_year: int, end_year: int, out: Path) 
         offset = 0
         while True:
             params = {
-                "product": "Core", "resolution": resolution, "limit": 500, "offset": offset,
+                "product": "Core",
+                "resolution": resolution,
+                "limit": 500,
+                "offset": offset,
                 "include_fields": META_FIELDS,
-                "f1": "creation_ts", "o1": "greaterthaneq", "v1": a,
-                "f2": "creation_ts", "o2": "lessthan", "v2": b,
+                "f1": "creation_ts",
+                "o1": "greaterthaneq",
+                "v1": a,
+                "f2": "creation_ts",
+                "o2": "lessthan",
+                "v2": b,
             }
             r = await client.get("/bug", params)
             if r is None:
@@ -160,7 +177,8 @@ async def fetch_texts(client: Client, ids: list[int], out: Path, progress_every:
                 comments = r.json().get("bugs", {}).get(str(bug_id), {}).get("comments", [])
                 if comments:
                     rec = {
-                        "id": bug_id, "ok": True,
+                        "id": bug_id,
+                        "ok": True,
                         "description": clean_description(str(comments[0].get("text", ""))),
                         "fix_note": extract_fix_note(comments),
                         "n_comments": len(comments),
@@ -175,9 +193,7 @@ async def fetch_texts(client: Client, ids: list[int], out: Path, progress_every:
         await asyncio.gather(*[one(i) for i in todo])
 
 
-def select_ids(
-    meta: list[dict[str, Any]], max_dups: int, max_fixed: int, seed: int
-) -> tuple[list[int], list[int]]:
+def select_ids(meta: list[dict[str, Any]], max_dups: int, max_fixed: int, seed: int) -> tuple[list[int], list[int]]:
     """Seeded sample: duplicates (with their master ids) and fixed bugs."""
     rng = random.Random(seed)  # noqa: S311
     dups = [m for m in meta if m.get("resolution") == "DUPLICATE" and m.get("dupe_of")]

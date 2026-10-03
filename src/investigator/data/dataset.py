@@ -12,7 +12,8 @@ from typing import Any
 
 # References to other bugs would let a model "cheat" on duplicate detection by reading the answer.
 _BUGREF = re.compile(
-    r"(?:https?://bugzilla\.mozilla\.org/show_bug\.cgi\?id=\d+|\bbug\s*#?\s*\d{5,8}\b|\bbugs?\s+\d{5,8}\b)", re.IGNORECASE
+    r"(?:https?://bugzilla\.mozilla\.org/show_bug\.cgi\?id=\d+|\bbug\s*#?\s*\d{5,8}\b|\bbugs?\s+\d{5,8}\b)",
+    re.IGNORECASE,
 )
 
 
@@ -88,9 +89,7 @@ def load_bugs(directory: Path) -> list[Bug]:
                 dupe_of=int(m["dupe_of"]) if m.get("dupe_of") else None,
                 summary=str(m.get("summary", "")),
                 description=str(t.get("description", "")),
-                fix_note=usable_fix_note(str(t.get("fix_note", "")))
-                if str(m.get("resolution", "")) == "FIXED"
-                else "",
+                fix_note=usable_fix_note(str(t.get("fix_note", ""))) if str(m.get("resolution", "")) == "FIXED" else "",
                 severity=str(m.get("severity", "")),
                 keywords=tuple(m.get("keywords") or ()),
                 crash_signature=str(m.get("cf_crash_signature") or ""),
