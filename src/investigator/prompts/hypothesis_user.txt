@@ -1,0 +1,8 @@
+New report
+Title: {summary}
+Description: {description}
+
+Predicted subsystems (model): {components}
+
+Historical cases:
+{cases}
